@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Monsters School | Minecraft Quiz</title>
+
+<style>
+:root{--green:#76ff03;--red:#ff1744;--xp:#00e5ff}
+body{
+  margin:0;font-family:Arial;background:#0b3d0b;color:#fff;
+  display:flex;justify-content:center;align-items:center;min-height:100vh
+}
+.box{
+  background:#1e1e1e;padding:16px;border:8px solid var(--green);
+  width:95%;max-width:800px;text-align:center;box-shadow:0 0 30px #000
+}
+h1,h2{color:var(--green)}
+input,button{
+  padding:10px;margin:6px;border-radius:6px;border:none;font-size:16px;width:90%
+}
+button{background:var(--green);color:#000;font-weight:bold;cursor:pointer}
+button:hover{transform:scale(1.05)}
+.question{
+  background:#111;padding:12px;margin:10px 0;border-left:6px solid var(--green)
+}
+.answers button{width:100%;margin-top:6px}
+.progress{height:10px;background:#333;margin:6px 0}
+.progress div{height:100%;width:0%;background:var(--green)}
+#xpbar{background:var(--xp)}
+#hearts{font-size:22px}
+#timer{font-size:18px}
+.danger{color:var(--red);animation:shake .4s infinite}
+@keyframes shake{
+  0%{transform:translateX(0)}25%{transform:translateX(-2px)}
+  50%{transform:translateX(2px)}75%{transform:translateX(-2px)}
+  100%{transform:translateX(0)}
+}
+#player{font-size:14px}
+.boss{color:#ff5252;text-shadow:0 0 10px red}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border:1px solid #555;padding:6px}
+@media(max-width:600px){h1{font-size:22px}}
+</style>
+</head>
+
+<body>
+<div class="box">
+
+<!-- LOGIN -->
+<div id="login">
+  <h1>🟩 Monsters School 🟩</h1>
+  <input id="studentName" placeholder="Student Name">
+  <button onclick="startQuiz()">Start Quiz</button>
+  <button onclick="teacherLogin()">Teacher Login</button>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" style="display:none">
+  <h2 id="levelTitle">Level: Overworld</h2>
+  <div id="hearts">❤️❤️❤️</div>
+  <div id="timer">⏱️</div>
+  <div id="player">Level 1</div>
+  <div class="progress"><div id="xpbar"></div></div>
+  <div class="progress"><div id="prog"></div></div>
+  <div class="question" id="q"></div>
+  <div class="answers" id="a"></div>
+</div>
+
+<!-- END -->
+<div id="end" style="display:none">
+  <h1>🏆 Certificate</h1>
+  <p id="cname"></p>
+  <p id="cscore"></p>
+  <p id="crank"></p>
+  <p>Date: <span id="date"></span></p>
+  <button onclick="window.print()">Print</button>
+  <button onclick="location.reload()">Restart</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none">
+  <h1>👨‍🏫 Teacher Dashboard</h1>
+  <table class="table" id="table">
+    <tr><th>Name</th><th>Score</th><th>Level</th><th>Date</th></tr>
+  </table>
+  <button onclick="clearData()">Clear Data</button>
+  <button onclick="location.reload()">Back</button>
+</div>
+
+</div>
+
+<script>
+// QUESTIONS
+const quiz=[
+ {q:'Which mob explodes?',a:['Zombie','Creeper','Skeleton'],c:1},
+ {q:'Best tool for stone?',a:['Shovel','Pickaxe','Hoe'],c:1},
+ {q:'Portal to Nether?',a:['End','Nether','Water'],c:1},
+ {q:'Final boss?',a:['Wither','Ender Dragon','Warden'],c:1},
+ {q:'Tame wolf?',a:['Bone','Fish','Apple'],c:0},
+ {q:'Ocean mob?',a:['Guardian','Zombie','Creeper'],c:0},
+ {q:'Fly item?',a:['Elytra','Shield','Helmet'],c:0},
+ {q:'Obsidian made from?',a:['Lava+Water','Stone','Fire'],c:0},
+ {q:'End food?',a:['Apple','Bread','Chorus Fruit'],c:2},
+ {q:'🔥 BOSS: Kill Ender Dragon?',a:['Beds','Sword','Bow'],c:0,boss:true}
+];
+
+// STATE
+let i=0,score=0,hearts=3,time=0,timer=null;
+let name='';
+let xp=Number(localStorage.getItem('xp'))||0;
+let lvl=Number(localStorage.getItem('lvl'))||1;
+
+// TIMER PER LEVEL
+function getTime(){
+  if(i<4) return 15;
+  if(i<7) return 12;
+  return 10;
+}
+
+function xpNeed(){return lvl*10}
+
+function updateXP(){
+  document.getElementById('player').innerText=`Level ${lvl}`;
+  document.getElementById('xpbar').style.width=(xp/xpNeed()*100)+'%';
+}
+
+function addXP(v){
+  xp+=v;
+  if(xp>=xpNeed()){
+    xp=0;lvl++;
+    alert('⬆️ Level Up! Level '+lvl);
+  }
+  localStorage.setItem('xp',xp);
+  localStorage.setItem('lvl',lvl);
+  updateXP();
+}
+
+function startQuiz(){
+  name=document.getElementById('studentName').value.trim();
+  if(!name)return alert('Enter name');
+  document.getElementById('login').style.display='none';
+  document.getElementById('quiz').style.display='block';
+  quiz.sort(()=>Math.random()-0.5);
+  updateXP();
+  loadQ();
+}
+
+function loadQ(){
+  if(i>=quiz.length){finish();return}
+  clearInterval(timer);
+  time=getTime();
+  const t=document.getElementById('timer');
+  t.className='';
+  t.innerText='⏱️ '+time;
+
+  timer=setInterval(()=>{
+    time--;
+    t.innerText='⏱️ '+time;
+    if(time<=5)t.classList.add('danger');
+    if(time<=0){
+      clearInterval(timer);
+      hearts--;
+      if(hearts<=0){finish();return}
+      i++;loadQ();
+    }
+  },1000);
+
+  document.getElementById('q').innerText=quiz[i].q;
+  document.getElementById('q').className=quiz[i].boss?'question boss':'question';
+
+  const a=document.getElementById('a');a.innerHTML='';
+  quiz[i].a.forEach((txt,idx)=>{
+    const b=document.createElement('button');
+    b.innerText=txt;
+    b.onclick=()=>answer(idx);
+    a.appendChild(b);
+  });
+
+  document.getElementById('hearts').innerText='❤️'.repeat(hearts);
+  document.getElementById('prog').style.width=(i/quiz.length*100)+'%';
+  document.getElementById('levelTitle').innerText=
+    i<4?'Level: Overworld':i<7?'Level: Nether':'🔥 Level: End';
+}
+
+function answer(idx){
+  clearInterval(timer);
+  if(idx===quiz[i].c){score++;addXP(5);}
+  else{hearts--;if(hearts<=0){finish();return}}
+  i++;loadQ();
+}
+
+function finish(){
+  clearInterval(timer);
+  document.getElementById('quiz').style.display='none';
+  document.getElementById('end').style.display='block';
+  document.getElementById('cname').innerText=name;
+  document.getElementById('cscore').innerText=`Score: ${score}/${quiz.length}`;
+  document.getElementById('crank').innerText=
+    score===quiz.length?'A+ LEGEND 🐉':score>=7?'A PRO':'B BUILDER';
+  document.getElementById('date').innerText=new Date().toLocaleDateString();
+  saveResult();
+}
+
+function saveResult(){
+  const d=JSON.parse(localStorage.getItem('results')||'[]');
+  d.push({name,score,lvl,date:new Date().toLocaleDateString()});
+  d.sort((a,b)=>b.score-a.score);
+  d.splice(5);
+  localStorage.setItem('results',JSON.stringify(d));
+}
+
+function teacherLogin(){
+  const p=prompt('Password');
+  if(p!=='legend')return alert('Wrong');
+  document.getElementById('login').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  loadTable();
+}
+
+function loadTable(){
+  const d=JSON.parse(localStorage.getItem('results')||'[]');
+  const t=document.getElementById('table');
+  t.innerHTML='<tr><th>Name</th><th>Score</th><th>Level</th><th>Date</th></tr>';
+  d.forEach(r=>{
+    t.innerHTML+=`<tr><td>${r.name}</td><td>${r.score}</td><td>${r.lvl}</td><td>${r.date}</td></tr>`;
+  });
+}
+
+function clearData(){
+  if(confirm('Clear all data?')){
+    localStorage.clear();
+    location.reload();
+  }
+}
+</script>
+</body>
+</html>
